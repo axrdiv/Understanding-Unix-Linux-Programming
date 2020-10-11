@@ -1,8 +1,9 @@
-/* play_again3.c
+/* play_again4.c
  * purpose: ask if user wants another transaction
  *  method: set tty into char-by-char mode,
  *          set tty into no-delay mode
  *          read char, return result
+ *          resets terminal modes on SIGINT, ignores SIGQUIT
  * returns: 0=>yes, 1=>no, 2=>timeout
  *  better: reset terminal mode on Interrupt
  */
@@ -11,6 +12,7 @@
 #include<fcntl.h>
 #include<string.h>
 #include<time.h>
+#include<signal.h>
 
 #define ASK         "Do you want another transaction"
 #define TRIES       3                   /* max tries */
@@ -22,12 +24,15 @@ void tty_mode(int);
 void set_cr_noecho_mode();
 void set_nodelay_mode();
 int get_ok_char();
+void ctrl_c_handler(int);
 
 int main() {
     int response;
     tty_mode(0);                            /* save current mode */
     set_cr_noecho_mode();                   /* set -icanon, -echo */
     set_nodelay_mode();                     /* noinput => EOF */
+    signal(SIGINT, ctrl_c_handler);         /* handle INT */
+    signal(SIGQUIT, SIG_IGN);               /* ignore QUIT signals */
     response = get_response(ASK, TRIES);    /* get some answer */
     tty_mode(1);                            /* restore orig mode */
     return response;
@@ -96,12 +101,24 @@ void set_nodelay_mode()
 void tty_mode(int how) {
     static struct termios   original_mode;
     static int              original_flags;
+    static int              stored = 0;
     if(how == 0) {
         tcgetattr(0, &original_mode);
         original_flags = fcntl(0, F_GETFL);
+        stored = 1;
     }
-    else {
+    else if(stored) {
         tcsetattr(0, TCSANOW, &original_mode);
         fcntl(0, F_SETFL, original_flags);
     }
+}
+
+void ctrl_c_handler(int signum)
+/*
+ * purpose: called if SIGINT is detected
+ *  action: reset tty and scram
+ */
+{
+    tty_mode(1);
+    exit(1);
 }
