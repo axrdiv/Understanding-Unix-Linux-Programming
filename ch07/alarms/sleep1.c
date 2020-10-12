@@ -15,7 +15,7 @@ int main() {
     signal(SIGALRM, wakeup);            /* catch it */
     alarm(4);                           /* set clock */
     pause();                            /* freeze here */
-    printf("Morning so soon?\n");        /* back to back */
+    printf("Morning so soon?\n");       /* back to back */
 
     return 0;
 }
